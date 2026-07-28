@@ -11,7 +11,11 @@ import {
   X,
   Sparkles,
   BarChart3,
-  BookOpen
+  BookOpen,
+  Filter,
+  Share2,
+  GitCompare,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -31,7 +35,7 @@ const GithubIcon = ({ className }) => (
   </svg>
 );
 
-const RepoItem = ({ repo, index, isFavorite, onToggleFavorite, onShowReadme }) => {
+const RepoItem = ({ repo, index, isFavorite, onToggleFavorite, onShowReadme, isComparing, onToggleCompare, compareDisabled }) => {
   const [translatedDesc, setTranslatedDesc] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -75,17 +79,33 @@ const RepoItem = ({ repo, index, isFavorite, onToggleFavorite, onShowReadme }) =
             </p>
           </div>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggleFavorite(repo); }}
-          className={cn(
-            "p-2.5 rounded-xl border transition-all active:scale-90 shrink-0",
-            isFavorite 
-              ? "bg-red-500/10 border-red-500/30 text-red-500" 
-              : "bg-white/5 border-white/5 text-gray-600 hover:text-red-400"
-          )}
-        >
-          <Heart className={cn("w-4 h-4", isFavorite && "fill-red-500")} />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleCompare(repo); }}
+            disabled={compareDisabled}
+            title={isComparing ? "비교 목록에서 제거" : "비교 목록에 추가 (최대 3개)"}
+            className={cn(
+              "p-2.5 rounded-xl border transition-all active:scale-90",
+              isComparing
+                ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                : "bg-white/5 border-white/5 text-gray-600 hover:text-blue-400",
+              compareDisabled && "opacity-30 cursor-not-allowed"
+            )}
+          >
+            <GitCompare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(repo); }}
+            className={cn(
+              "p-2.5 rounded-xl border transition-all active:scale-90",
+              isFavorite
+                ? "bg-red-500/10 border-red-500/30 text-red-500"
+                : "bg-white/5 border-white/5 text-gray-600 hover:text-red-400"
+            )}
+          >
+            <Heart className={cn("w-4 h-4", isFavorite && "fill-red-500")} />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -295,6 +315,86 @@ const RepoDetailsModal = ({ repo, onClose }) => {
   );
 };
 
+const CompareModal = ({ repos, onRemove, onClose }) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const rows = [
+    { label: '스타', get: (r) => r.stargazers_count?.toLocaleString() ?? '-' },
+    { label: '포크', get: (r) => r.forks_count?.toLocaleString() ?? '-' },
+    { label: 'Open Issues', get: (r) => r.open_issues_count?.toLocaleString() ?? '-' },
+    { label: '언어', get: (r) => r.language || '-' },
+    { label: '라이선스', get: (r) => r.license?.name || r.license?.spdx_id || '정보 없음' },
+    { label: '최근 업데이트', get: (r) => formatDate(r.updated_at) }
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.9, y: 20 }}
+        className="w-full max-w-4xl max-h-[85vh] glass-panel rounded-3xl border border-white/10 flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="p-6 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary">
+              <GitCompare className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold text-white">저장소 비교</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg text-gray-500 hover:text-white transition-all">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-6 custom-scrollbar">
+          <div className="min-w-[560px]">
+            <div className="grid" style={{ gridTemplateColumns: `140px repeat(${repos.length}, 1fr)` }}>
+              <div />
+              {repos.map((repo) => (
+                <div key={repo.id} className="p-3 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <img src={repo.owner.avatar_url} alt={repo.owner.login} className="w-10 h-10 rounded-xl border border-white/10" />
+                    <a href={repo.html_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-white hover:text-brand-primary truncate max-w-[140px]">
+                      {repo.name}
+                    </a>
+                    <button onClick={() => onRemove(repo.id)} className="text-[10px] text-gray-500 hover:text-red-400 font-bold uppercase tracking-widest">
+                      제거
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {rows.map((row) => (
+                <React.Fragment key={row.label}>
+                  <div className="p-3 text-xs font-black text-gray-500 uppercase tracking-tighter flex items-center border-t border-white/5">
+                    {row.label}
+                  </div>
+                  {repos.map((repo) => (
+                    <div key={repo.id} className="p-3 text-center text-sm font-bold text-white border-t border-white/5 flex items-center justify-center">
+                      {row.get(repo)}
+                    </div>
+                  ))}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const StatsSection = ({ repos }) => {
   if (!repos.length) return null;
 
@@ -459,6 +559,12 @@ export default function App() {
   const [loadingRising, setLoadingRising] = useState(false);
   const [selectedRepoForModal, setSelectedRepoForModal] = useState(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [licenseFilter, setLicenseFilter] = useState('');
+  const [compareList, setCompareList] = useState([]);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [sharedRepos, setSharedRepos] = useState(null);
+  const [loadingShared, setLoadingShared] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('gittrend-favorites', JSON.stringify(favorites));
@@ -509,6 +615,56 @@ export default function App() {
     fetchRisingRepos();
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('shared');
+    if (!shared) return;
+
+    const loadSharedRepos = async () => {
+      setLoadingShared(true);
+      try {
+        const fullNames = JSON.parse(atob(decodeURIComponent(shared)));
+        const results = await Promise.all(
+          fullNames.map(async (fullName) => {
+            try {
+              const res = await fetch(`/api/github?path=repos/${fullName}`);
+              const data = await res.json();
+              return data && data.id ? data : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        setSharedRepos(results.filter(Boolean));
+      } catch (err) {
+        console.error('Failed to load shared favorites:', err);
+        setSharedRepos([]);
+      } finally {
+        setLoadingShared(false);
+      }
+    };
+    loadSharedRepos();
+  }, []);
+
+  const shareFavorites = async () => {
+    if (!favorites.length) return;
+    const fullNames = favorites.map(f => f.full_name);
+    const encoded = encodeURIComponent(btoa(JSON.stringify(fullNames)));
+    const shareUrl = `${window.location.origin}${window.location.pathname}?shared=${encoded}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy share link:', err);
+    }
+  };
+
+  const closeSharedView = () => {
+    setSharedRepos(null);
+    window.history.replaceState({}, '', window.location.pathname);
+  };
+
   const categories = [
     { name: 'All', query: '' },
     { name: 'AI & LLM', query: 'AI OR LLM OR "Large Language Model"' },
@@ -517,6 +673,15 @@ export default function App() {
     { name: '이미지 생성', query: '"Image Generation" OR Diffusion OR Midjourney OR Dall-E' },
     { name: 'AI 모델', query: '"AI Model" OR "Pretrained Model" OR Llama OR Mistral' },
     { name: 'Agents', query: '"AI Agent" OR "Autonomous Agent" OR "Agentic AI"' }
+  ];
+
+  const licenses = [
+    { label: '모든 라이선스', value: '' },
+    { label: 'MIT', value: 'mit' },
+    { label: 'Apache 2.0', value: 'apache-2.0' },
+    { label: 'GPL 3.0', value: 'gpl-3.0' },
+    { label: 'BSD 3-Clause', value: 'bsd-3-clause' },
+    { label: 'Unlicense', value: 'unlicense' }
   ];
 
   const updateRateLimit = (headers) => {
@@ -532,10 +697,10 @@ export default function App() {
     }
   };
 
-  const fetchRepos = async (keyword, pageNum = 1, category = selectedCategory) => {
+  const fetchRepos = async (keyword, pageNum = 1, category = selectedCategory, license = licenseFilter) => {
     if (showFavoritesOnly && !keyword) return;
 
-    const cacheKey = `gittrend-repos-${category}-${keyword || 'default'}-p${pageNum}`;
+    const cacheKey = `gittrend-repos-${category}-${keyword || 'default'}-${license || 'any'}-p${pageNum}`;
     const cacheTimeKey = `${cacheKey}-time`;
     const cached = sessionStorage.getItem(cacheKey);
     const time = sessionStorage.getItem(cacheTimeKey);
@@ -560,6 +725,10 @@ export default function App() {
       searchQuery = categoryQuery;
     } else {
       searchQuery = 'stars:>1000';
+    }
+
+    if (license) {
+      searchQuery += ` license:${license}`;
     }
 
     setLoading(true);
@@ -620,12 +789,18 @@ export default function App() {
     e.preventDefault();
     setShowFavoritesOnly(false);
     setSelectedCategory('All');
-    fetchRepos(query, 1, 'All');
+    fetchRepos(query, 1, 'All', licenseFilter);
   };
 
   const handlePageChange = (newPage) => {
     if (newPage < 1 || loading) return;
-    fetchRepos(query, newPage, selectedCategory);
+    fetchRepos(query, newPage, selectedCategory, licenseFilter);
+  };
+
+  const handleLicenseChange = (value) => {
+    setLicenseFilter(value);
+    setShowFavoritesOnly(false);
+    fetchRepos(query, 1, selectedCategory, value);
   };
 
   const toggleFavorite = (repo) => {
@@ -638,7 +813,22 @@ export default function App() {
     });
   };
 
-  const currentRepos = showFavoritesOnly ? favorites : repos;
+  const toggleCompare = (repo) => {
+    setCompareList(prev => {
+      const exists = prev.find(r => r.id === repo.id);
+      if (exists) return prev.filter(r => r.id !== repo.id);
+      if (prev.length >= 3) return prev;
+      return [...prev, repo];
+    });
+  };
+
+  const removeFromCompare = (repoId) => {
+    setCompareList(prev => prev.filter(r => r.id !== repoId));
+  };
+
+  const viewingShared = sharedRepos !== null;
+  const currentRepos = viewingShared ? sharedRepos : (showFavoritesOnly ? favorites : repos);
+  const isBusy = viewingShared ? loadingShared : loading;
 
   return (
     <div className="min-h-screen px-4 py-12 md:px-12 lg:px-24 max-w-6xl mx-auto">
@@ -685,6 +875,16 @@ export default function App() {
             <Heart className={cn("w-4 h-4", showFavoritesOnly && "fill-red-500")} />
             <span>Saved: {favorites.length}</span>
           </button>
+
+          {favorites.length > 0 && (
+            <button
+              onClick={shareFavorites}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full border glass-panel border-white/10 text-gray-400 hover:text-white text-[10px] font-bold tracking-widest uppercase transition-all"
+            >
+              {shareCopied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+              <span>{shareCopied ? '링크 복사됨' : '공유'}</span>
+            </button>
+          )}
         </div>
         
         <div className="space-y-4">
@@ -725,7 +925,7 @@ export default function App() {
                 setShowFavoritesOnly(false);
                 setQuery('');
                 setSelectedCategory(cat.name);
-                fetchRepos('', 1, cat.name);
+                fetchRepos('', 1, cat.name, licenseFilter);
               }}
               className={cn(
                 "px-5 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap border",
@@ -738,10 +938,27 @@ export default function App() {
             </button>
           ))}
         </div>
+
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 glass-panel rounded-xl border border-white/10">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={licenseFilter}
+              onChange={(e) => handleLicenseChange(e.target.value)}
+              className="bg-transparent text-xs font-bold text-gray-300 outline-none cursor-pointer"
+            >
+              {licenses.map((l) => (
+                <option key={l.value} value={l.value} className="bg-gray-900 text-white">
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </header>
 
       {/* Trends & Stats Section */}
-      {!showFavoritesOnly && (
+      {!showFavoritesOnly && !viewingShared && (
         <>
           <RisingNowSection 
             repos={risingRepos} 
@@ -766,36 +983,50 @@ export default function App() {
             </motion.div>
           )}
 
-          {!loading && currentRepos.length > 0 ? (
+          {!isBusy && currentRepos.length > 0 ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center mb-6 px-2">
-                <h2 className="text-lg font-bold text-white whitespace-nowrap">
-                  {showFavoritesOnly 
-                    ? `저장된 프로젝트` 
-                    : (query ? `'${query}' 검색 결과` : `${selectedCategory} 인기 프로젝트`)} 
-                  <span className="text-brand-primary ml-2">{showFavoritesOnly ? favorites.length : totalCount.toLocaleString()}</span>건
+                <h2 className="text-lg font-bold text-white whitespace-nowrap flex items-center gap-3">
+                  {viewingShared
+                    ? `공유받은 프로젝트`
+                    : showFavoritesOnly
+                      ? `저장된 프로젝트`
+                      : (query ? `'${query}' 검색 결과` : `${selectedCategory} 인기 프로젝트`)}
+                  <span className="text-brand-primary ml-2">{viewingShared ? sharedRepos.length : (showFavoritesOnly ? favorites.length : totalCount.toLocaleString())}</span>건
+                  {viewingShared && (
+                    <button
+                      onClick={closeSharedView}
+                      className="p-1.5 glass-panel border border-white/10 rounded-lg text-gray-500 hover:text-white transition-all"
+                      title="공유 보기 닫기"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </h2>
-                {!showFavoritesOnly && (
+                {!showFavoritesOnly && !viewingShared && (
                   <div className="text-xs text-gray-500 font-medium uppercase tracking-tighter">
                     Page {page} of {Math.ceil(Math.min(totalCount, 1000) / 10)}
                   </div>
                 )}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {currentRepos.map((repo, index) => (
-                  <RepoItem 
-                    key={repo.id} 
-                    repo={repo} 
-                    index={index} 
+                  <RepoItem
+                    key={repo.id}
+                    repo={repo}
+                    index={index}
                     isFavorite={favorites.some(f => f.id === repo.id)}
                     onToggleFavorite={toggleFavorite}
                     onShowReadme={setSelectedRepoForModal}
+                    isComparing={compareList.some(c => c.id === repo.id)}
+                    onToggleCompare={toggleCompare}
+                    compareDisabled={compareList.length >= 3 && !compareList.some(c => c.id === repo.id)}
                   />
                 ))}
               </div>
 
-              {!showFavoritesOnly && (
+              {!showFavoritesOnly && !viewingShared && (
                 <div className="flex justify-center items-center gap-4 mt-12">
                   <button
                     onClick={() => handlePageChange(page - 1)}
@@ -833,13 +1064,23 @@ export default function App() {
                 </div>
               )}
             </div>
-          ) : !loading && !error && (
+          ) : !isBusy && !error && (
             <div className="text-center py-32">
               <div className="opacity-10 flex flex-col items-center gap-6">
                 <GithubIcon className="w-24 h-24" />
                 <p className="text-2xl font-black tracking-tight">
-                  {showFavoritesOnly ? "저장된 프로젝트가 없습니다." : "결과를 찾을 수 없습니다."}
+                  {viewingShared
+                    ? "공유된 프로젝트를 찾을 수 없습니다."
+                    : showFavoritesOnly ? "저장된 프로젝트가 없습니다." : "결과를 찾을 수 없습니다."}
                 </p>
+                {viewingShared && (
+                  <button
+                    onClick={closeSharedView}
+                    className="text-xs font-bold text-brand-primary hover:underline"
+                  >
+                    돌아가기
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -858,9 +1099,34 @@ export default function App() {
 
       <AnimatePresence>
         {selectedRepoForModal && (
-          <RepoDetailsModal 
-            repo={selectedRepoForModal} 
-            onClose={() => setSelectedRepoForModal(null)} 
+          <RepoDetailsModal
+            repo={selectedRepoForModal}
+            onClose={() => setSelectedRepoForModal(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {compareList.length >= 2 && !showCompareModal && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={() => setShowCompareModal(true)}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-6 py-3.5 rounded-full bg-brand-primary text-white font-black text-sm shadow-2xl shadow-brand-primary/30 hover:bg-brand-primary/90 transition-all active:scale-95"
+          >
+            <GitCompare className="w-4 h-4" />
+            <span>비교하기 ({compareList.length})</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCompareModal && (
+          <CompareModal
+            repos={compareList}
+            onRemove={removeFromCompare}
+            onClose={() => setShowCompareModal(false)}
           />
         )}
       </AnimatePresence>
