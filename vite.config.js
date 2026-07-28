@@ -8,7 +8,9 @@ import url from 'url'
 export default defineConfig(({ mode }) => {
   // .env 파일에서 환경 변수 로드 후 process.env에 주입
   const env = loadEnv(mode, process.cwd(), '');
-  process.env.GITHUB_TOKEN = env.GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+  if (env.GITHUB_TOKEN) {
+    process.env.GITHUB_TOKEN = env.GITHUB_TOKEN;
+  }
 
   return {
     plugins: [
