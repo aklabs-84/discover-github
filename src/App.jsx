@@ -1087,14 +1087,16 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      <footer className="mt-32 pb-12 text-center space-y-4 border-t border-white/5 pt-12">
-        <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">
-          © 2026 GITTREND INSIGHT. POWERED BY GEMINI 3 ULTRA.
-        </p>
-        <div className="flex justify-center gap-8 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-          <a href="https://litt.ly/aklabs" target="_blank" rel="noopener noreferrer" className="hover:text-brand-primary transition-colors">AKLABS</a>
-          <a href="#" className="hover:text-brand-primary transition-colors">DOCUMENTATION</a>
+      {/* AKLABS 공통 푸터 (aklabs-footer 스킬). 떠 있는 「비교하기」 버튼이 나오면 가리지 않게 아래 여백을 늘린다 */}
+      <footer className={`aklabs-foot mt-32 flex min-h-16 flex-col items-center justify-between gap-1 border-t border-white/10 py-4 text-sm text-gray-400 sm:flex-row sm:gap-6 ${compareList.length >= 2 ? 'mb-24' : ''}`}>
+        <div className="flex flex-col items-center gap-0.5 sm:flex-row sm:gap-4">
+          <b className="font-bold tracking-widest text-white/90">AKLABS</b>
+          <span>© 2026 GITTREND INSIGHT</span>
         </div>
+        <nav aria-label="관련 사이트" className="flex flex-wrap justify-center gap-x-6">
+          <a href="https://classlog-ai.vercel.app/" target="_blank" rel="noopener" className="inline-flex min-h-10 items-center border-b border-transparent text-gray-400 transition-colors hover:border-brand-primary hover:text-brand-primary focus-visible:border-brand-primary focus-visible:text-brand-primary">클래스로그AI</a>
+          <a href="https://ai-service-hub.vercel.app/" target="_blank" rel="noopener" className="inline-flex min-h-10 items-center border-b border-transparent text-gray-400 transition-colors hover:border-brand-primary hover:text-brand-primary focus-visible:border-brand-primary focus-visible:text-brand-primary">아크의 실험실</a>
+        </nav>
       </footer>
 
       <AnimatePresence>
